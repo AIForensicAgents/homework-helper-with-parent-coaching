@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Homework Helper with Parent Coaching</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/marked@9.1.6/marked.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#4F46E5',
+        'primary-dark': '#3730A3',
+        'primary-light': '#818CF8',
+        accent: '#F59E0B',
+        'accent-dark': '#D97706',
+        surface: '#F8FAFC',
+        'surface-alt': '#EEF2FF',
+        child: '#10B981',
+        'child-light': '#D1FAE5',
+        parent: '#8B5CF6',
+        'parent-light': '#EDE9FE',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      }
+    }
+  }
+}
+</script>
+<style>
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Inter', system-ui, sans-serif; }
+.chat-bubble { max-width: 85%; word-wrap: break-word; }
+.chat-bubble p { margin: 0; }
+.chat-bubble ul, .chat-bubble ol { padding-left: 1.2rem; margin: 0.3rem 0; }
+.fade-in { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+.typing-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; animation: pulse-dot 1.4s infinite ease-in-out both; }
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.tab-active { border-bottom: 3px solid; font-weight: 600; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+input[type="file"]::file-selector-button {
+  background: #4F46E5; color: white; border: none; padding: 8px 16px;
+  border-radius: 8px; font-weight: 500; cursor: pointer; margin-right: 8px;
+}
+.progress-ring { transition: stroke-dashoffset 0.5s ease; }
+</style>
+</head>
+<body class="bg-surface min-h-screen">
+
+<div id="app" class="max-w-lg mx-auto min-h-screen flex flex-col">
+  
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-50 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">📚</span>
+        <div>
+          <h1 class="text-lg font-bold text-gray-900 leading-tight">Homework Helper</h1>
+          <p class="text-xs text-gray-500 leading-tight">Parent Coaching Edition</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="showProgress()" class="p-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition" title="Progress">
+          <span class="text-xl">📊</span>
+        </button>
+        <button onclick="showSettings()" class="p-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition" title="Settings">
+          <span class="text-xl">⚙️</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Onboarding Screen -->
+  <div id="onboarding-screen" class="flex-1 flex flex-col items-center justify-center p-6 text-center hidden">
+    <div class="mb-6">
+      <span class="text-6xl">🎒</span>
+    </div>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome, Super Parent! 💪</h2>
+    <p class="text-gray-600 mb-6 text-sm leading-relaxed">Set up your child's profile so we can tailor homework help to their grade level. You'll get coaching tips while they learn!</p>
+    
+    <div class="w-full space-y-4 max-w-sm">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1 text-left">Child's Name</label>
+        <input id="child-name" type="text" placeholder="e.g., Emma" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1 text-left">Grade Level</label>
+        <select id="child-grade" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base bg-white">
+          <option value="">Select grade...</option>
+          <option value="1">1st Grade</option>
+          <option value="2">2nd Grade</option>
+          <option value="3">3rd Grade</option>
+          <option value="4">4th Grade</option>
+          <option value="5">5th Grade</option>
+          <option value="6">6th Grade</option>
+          <option value="7">7th Grade</option>
+          <option value="8">8th Grade</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1 text-left">Available Time Window</label>
+        <select id="parent-time" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base bg-white">
+          <option value="2-5">2–5 minutes (quick check-in)</option>
+          <option value="5-10">5–10 minutes (focused help)</option>
+          <option value="10-20">10–20 minutes (deep session)</option>
+        </select>
+      </div>
+      <button onclick="saveProfile()" class="w-full bg-primary text-white py-3.5 rounded-xl font-semibold text-base hover:bg-primary-dark active:scale-[0.98] transition shadow-lg shadow-primary/25 min-h-[48px]">
+        Let's Get Started! 🚀
+      </button>
+    </div>
+  </div>
+
+  <!-- Main App Screen -->
+  <div id="main-screen" class="flex-1 flex flex-col hidden">
+    
+    <!-- View Tabs -->
+    <div class="flex bg-white border-b border-gray-100">
+      <button id="tab-child" onclick="switchTab('child')" class="flex-1 py-3 text-center text-sm font-medium transition tab-active border-child text-child">
+        🧒 Child View
+      </button>
+      <button id="tab-parent" onclick="switchTab('parent')" class="flex-1 py-3 text-center text-sm font-medium transition text-gray-400 border-transparent border-b-3">
+        👩‍👧 Parent Coach
+      </button>
+    </div>
+
+    <!-- Quick Actions Bar -->
+    <div class="bg-white px-3 py-2 border-b border-gray-50 flex gap-2 overflow-x-auto scrollbar-hide">
+      <button onclick="uploadHomework()" class="flex items-center gap-1.5 px-3 py-2 bg-accent/10 text-accent-dark rounded-full text-xs font-medium whitespace-nowrap min-h-[40px] hover:bg-accent/20 transition">
+        📷 Upload Assignment
+      </button>
+      <button onclick="quickSubject('math')" class="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 rounded-full text-xs font-medium whitespace-nowrap min-h-[40px] hover:bg-blue-100 transition">
+        🔢 Math
+      </button>
+      <button onclick="quickSubject('reading')" class="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-full text-xs font-medium whitespace-nowrap min-h-[40px] hover:bg-green-100 transition">
+        📖 Reading
+      </button>
+      <button onclick="quickSubject('science')" class="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 rounded-full text-xs font-medium whitespace-nowrap min-h-[40px] hover:bg-purple-100 transition">
+        🔬 Science
+      </button>
+      <button onclick="quickSubject('writing')" class="flex items-center gap-1.5 px-3 py-2 bg-pink-50 text-pink-700 rounded-full text-xs font-medium whitespace-nowrap min-h-[40px] hover:bg-pink-100 transition">
+        ✏️ Writing
+      </button>
+    </div>
+
+    <!-- Child Chat View -->
+    <div id="child-view" class="flex-1 flex flex-col">
+      <div id="child-messages" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide" style="max-height: calc(100vh - 260px);">
+        <!-- Messages populated by JS -->
+      </div>
+      <div class="bg-white border-t border-gray-100 p-3">
+        <div class="flex gap-2 items-end">
+          <input id="child-input" type="text" placeholder="Type your homework question... ✍️" 
+            class="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-child focus:ring-2 focus:ring-child/20 outline-none text-base min-h-[48px]"
+            onkeydown="if(event.key==='Enter')sendChildMessage()">
+          <button onclick="sendChildMessage()" class="bg-child text-white p-3 rounded-xl hover:bg-emerald-600 active:scale-95 transition min-w-[48px] min-h-[48px] flex items-center justify-center shadow-lg shadow-child/25">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parent Coach View -->
+    <div id="parent-view" class="flex-1 flex flex-col hidden">
+      <div id="parent-messages" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide" style="max-height: calc(100vh - 260px);">
+        <!-- Parent coaching messages -->
+      </div>
+      <div class="bg-white border-t border-gray-100 p-3">
+        <div class="flex gap-2 items-end">
+          <input id="parent-input" type="text" placeholder="Ask for coaching tips... 💡" 
+            class="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-parent focus:ring-2 focus:ring-parent/20 outline-none text-base min-h-[48px]"
+            onkeydown="if(event.key==='Enter')sendParentMessage()">
+          <button onclick="sendParentMessage()" class="bg-parent text-white p-3 rounded-xl hover:bg-violet-600 active:scale-95 transition min-w-[48px] min-h-[48px] flex items-center justify-center shadow-lg shadow-parent/25">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Modal -->
+  <div id="progress-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">📊 Learning Progress</h3>
+        <button onclick="closeModals()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">✕</button>
+      </div>
+      <div id="progress-content" class="space-y-4">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">⚙️ Settings</h3>
+        <button onclick="closeModals()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">✕</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Child's Name</label>
+          <input id="settings-name" type="text" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+          <select id="settings-grade" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base bg-white">
+            <option value="1">1st Grade</option>
+            <option value="2">2nd Grade</option>
+            <option value="3">3rd Grade</option>
+            <option value="4">4th Grade</option>
+            <option value="5">5th Grade</option>
+            <option value="6">6th Grade</option>
+            <option value="7">7th Grade</option>
+            <option value="8">8th Grade</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Available Time</label>
+          <select id="settings-time" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base bg-white">
+            <option value="2-5">2–5 minutes</option>
+            <option value="5-10">5–10 minutes</option>
+            <option value="10-20">10–20 minutes</option>
+          </select>
+        </div>
+        <button onclick="updateSettings()" class="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary-dark active:scale-[0.98] transition min-h-[48px]">
+          Save Changes ✅
+        </button>
+        <button onclick="clearAllData()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-medium hover:bg-red-100 active:scale-[0.98] transition min-h-[48px]">
+          Reset All Data 🗑️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="upload-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">📷 Upload Assignment</h3>
+        <button onclick="closeModals()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">✕</button>
+      </div>
+      <p class="text-sm text-gray-600 mb-4">Describe or paste your homework assignment and we'll break it down step by step!</p>
+      <textarea id="upload-text" rows="5" placeholder="Paste or type the homework assignment here...&#10;&#10;Example: 'Solve: 3/4 + 1/2 = ?' or 'Write a paragraph about photosynthesis'" 
+        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-light outline-none text-base resize-none mb-4"></textarea>
+      <button onclick="submitHomework()" class="w-full bg-accent text-white py-3 rounded-xl font-semibold hover:bg-accent-dark active:scale-[0.98] transition min-h-[48px] shadow-lg shadow-accent/25">
+        Analyze Assignment 🔍
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="fixed inset-0 bg-black/30 z-[60] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 text-center shadow-xl">
+      <div class="flex justify-center gap-1.5 mb-3">
+        <span class="typing-dot bg-primary"></span>
+        <span class="typing-dot bg-primary-light"></span>
+        <span class="typing-dot bg-accent"></span>
+      </div>
+      <p id="loading-text" class="text-sm text-gray-600 font-medium">Thinking...</p>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+
+<script>
+(function() {
+  // Global AI tracking variables
+  window.totalAiInputTokens = 0;
+  window.totalAiOutputTokens = 0;
+  window.totalAiTime = 0;
+  window.aiTimeByAlias = {};
+
+  // App state
+  let profile = JSON.parse(localStorage.getItem('hw_profile') || 'null');
+  let childMessages = JSON.parse(localStorage.getItem('hw_child_msgs') || '[]');
+  let parentMessages = JSON.parse(localStorage.getItem('hw_parent_msgs') || '[]');
+  let progressData = JSON.parse(localStorage.getItem('hw_progress') || '{"sessions":0,"subjects":{},"lastActive":null,"microLessons":[]}');
+  let currentTab = 'child';
+  let isLoading = false;
+  let conversationContext = JSON.parse(localStorage.getItem('hw_context') || '[]');
+
+  // Initialize
+  function init() {
+    if (profile) {
+      document.getElementById('onboarding-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      renderMessages();
+      if (childMessages.length === 0) {
+        addWelcomeMessages();
+      }
+    } else {
+      document.getElementById('onboarding-screen').classList.remove('hidden');
+      document.getElementById('main-screen').classList.add('hidden');
+    }
+  }
+
+  function addWelcomeMessages() {
+    const childWelcome = {
+      role: 'assistant',
+      content: `Hi ${profile.name}! 👋 I'm your Homework Helper!\n\nI'm here to help you learn step by step. You can:\n- 📷 **Upload** your homework assignment\n- ✍️ **Type** a question\n- 🔢 Pick a **subject** above\n\nWhat are we working on today?`,
+      time: Date.now()
+    };
+    childMessages.push(childWelcome);
+    saveMessages();
+
+    const parentWelcome = {
+      role: 'assistant',
+      content: `Welcome, ${profile.name}'s parent! 💪\n\n**Here's how Parent Coaching works:**\n\n🔔 When ${profile.name} asks a homework question, you'll get:\n- A **quick explanation** of the concept\n- **Coaching scripts** you can use in ${profile.timeWindow} min\n- **Follow-up micro-lessons** for reinforcement\n\nSwitch to the **Child View** tab to start a homework session, and coaching tips will appear here automatically!\n\n💡 You can also ask me for specific coaching advice anytime.`,
+      time: Date.now()
+    };
+    parentMessages.push(parentWelcome);
+    saveMessages();
+    renderMessages();
+  }
+
+  // AI Call with retry
+  async function callAI(prompt, retries = 3) {
+    const startTime = Date.now();
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await fetch('https://16504442930.work/run_prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alias: 'genericAI',
+            params: { prompt: prompt }
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          if (attempt === retries - 1) {
+            // Format error with AI
+            const friendlyError = await formatErrorWithAI(errorText, response.status);
+            throw new Error(friendlyError);
+          }
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        
+        const data = await response.json();
+        const elapsed = Date.now() - startTime;
+        
+        // Track tokens and time
+        window.totalAiInputTokens += (data.input_tokens || data.usage?.input_tokens || 0);
+        window.totalAiOutputTokens += (data.output_tokens || data.usage?.output_tokens || 0);
+        window.totalAiTime += elapsed;
+        if (!window.aiTimeByAlias['genericAI']) window.aiTimeByAlias['genericAI'] = 0;
+        window.aiTimeByAlias['genericAI'] += elapsed;
+        
+        return data;
+      } catch (e) {
+        if (attempt === retries - 1) throw e;
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  async function formatErrorWithAI(errorText, status) {
+    try {
+      const resp = await fetch('https://16504442930.work/run_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alias: 'genericAI',
+          params: {
+            prompt: `You are a friendly error message formatter. Take this API error and return a user-friendly message that empowers the user to fix it. Return JSON with key "message" as a string. Error status: ${status}, Error body: ${errorText}`
+          }
+        })
+      });
+      const data = await resp.json();
+      return data.message || `Something went wrong (Status ${status}). Please try again. Full response: ${errorText}`;
+    } catch {
+      return `Oops! Something went wrong (Status ${status}). Please try again in a moment. Details: ${errorText}`;
+    }
+  }
+
+  // Save & load helpers
+  function saveMessages() {
+    localStorage.setItem('hw_child_msgs', JSON.stringify(childMessages.slice(-50)));
+    localStorage.setItem('hw_parent_msgs', JSON.stringify(parentMessages.slice(-50)));
+    localStorage.setItem('hw_context', JSON.stringify(conversationContext.slice(-10)));
+  }
+
+  function saveProgress() {
+    localStorage.setItem('hw_progress', JSON.stringify(progressData));
+  }
+
+  // Render messages
+  function renderMessages() {
+    renderChildMessages();
+    renderParentMessages();
+  }
+
+  function renderChildMessages() {
+    const container = document.getElementById('child-messages');
+    container.innerHTML = childMessages.map(m => createBubble(m, 'child')).join('');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function renderParentMessages() {
+    const container = document.getElementById('parent-messages');
+    container.innerHTML = parentMessages.map(m => createBubble(m, 'parent')).join('');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function createBubble(msg, mode) {
+    const isUser = msg.role === 'user';
+    const time = msg.time ? new Date(msg.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+    
+    if (isUser) {
+      return `<div class="flex justify-end fade-in">
+        <div class="chat-bubble bg-${mode === 'child' ? 'child' : 'parent'} text-white px-4 py-2.5 rounded-2xl rounded-br-md shadow-sm">
+          <div class="text-sm leading-relaxed">${escapeHtml(msg.content)}</div>
+          <div class="text-[10px] opacity-70 mt-1 text-right">${time}</div>
+        </div>
+      </div>`;
+    } else {
+      const icon = mode === 'child' ? '🤖' : '🧠';
+      return `<div class="flex gap-2 fade-in">
+        <div class="w-8 h-8 rounded-full bg-${mode === 'child' ? 'child-light' : 'parent-light'} flex items-center justify-center text-sm flex-shrink-0 mt-1">${icon}</div>
+        <div class="chat-bubble bg-white px-4 py-2.5 rounded-2xl rounded-bl-md shadow-sm border border-gray-100">
+          <div class="text-sm leading-relaxed text-gray-800 prose prose-sm">${marked.parse(msg.content)}</div>
+          <div class="text-[10px] text-gray-400 mt-1">${time}</div>
+        </div>
+      </div>`;
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showLoading(text) {
+    isLoading = true;
+    document.getElementById('loading-text').textContent = text || 'Thinking...';
+    document.getElementById('loading-overlay').classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    isLoading = false;
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }
+
+  function addTypingIndicator(containerId) {
+    const container = document.getElementById(containerId);
+    const indicator = document.createElement('div');
+    indicator.id = 'typing-indicator';
+    indicator.className = 'flex gap-2 fade-in';
+    indicator.innerHTML = `
+      <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0">💭</div>
+      <div class="bg-white px-4 py-3 rounded-2xl rounded-bl-md shadow-sm border border-gray-100">
+        <div class="flex gap-1.5">
+          <span class="typing-dot bg-gray-400"></span>
+          <span class="typing-dot bg-gray-400"></span>
+          <span class="typing-dot bg-gray-400"></span>
+        </div>
+      </div>`;
+    container.appendChild(indicator);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  // Core messaging functions
+  window.sendChildMessage = async function() {
+    if (isLoading) return;
+    const input = document.getElementById('child-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    childMessages.push({ role: 'user', content: text, time: Date.now() });
+    renderChildMessages();
+
+    // Build context for the AI
+    const contextSummary = conversationContext.slice(-5).map(c => `${c.role}: ${c.content}`).join('\n');
+
+    addTypingIndicator('child-messages');
+
+    try {
+      // Child tutoring call
+      const childPrompt = `You are a friendly, encouraging homework tutor for a ${profile.grade}th grade student named ${profile.name}. 
+
+CONVERSATION CONTEXT (last few exchanges):
+${contextSummary}
+
+STUDENT'S QUESTION/MESSAGE: "${text}"
+
+INSTRUCTIONS:
+- Respond at a ${profile.grade}th grade reading level
+- Break down problems into clear, small steps
+- Use encouraging language and emojis sparingly
+- Give HINTS first, not direct answers
+- If they're stuck, guide them through the process
+- Use analogies appropriate for their age
+- Keep responses concise (under 200 words)
+
+Return a JSON object with exactly these keys:
+- "childResponse": string (your response to the student, using markdown formatting)
+- "subject": string (one of: "math", "reading", "science", "writing", "social_studies", "other")
+- "concept": string (the specific concept being worked on, e.g., "fraction addition")
+- "difficulty": string (one of: "easy", "medium", "hard")
+- "parentCoachTip": string (a coaching script for the parent, 2-3 sentences they can say to reinforce learning during a ${profile.timeWindow} minute interaction, formatted in markdown)
+- "parentExplanation": string (brief explanation of the concept for the parent so they understand what's being taught, formatted in markdown)
+- "microLesson": string (a 1-sentence follow-up activity the parent can do with the child later, formatted as a suggestion)`;
+
+      const result = await callAI(childPrompt);
+      removeTypingIndicator();
+
+      const childResp = result.childResponse || result.child_response || "I'm thinking about that! Can you tell me more about the problem?";
+      const subject = result.subject || 'other';
+      const concept = result.concept || 'general';
+
+      childMessages.push({ role: 'assistant', content: childResp, time: Date.now() });
+      conversationContext.push({ role: 'user', content: text });
+      conversationContext.push({ role: 'assistant', content: childResp });
+
+      // Add parent coaching message
+      const parentTip = result.parentCoachTip || result.parent_coach_tip || '';
+      const parentExpl = result.parentExplanation || result.parent_explanation || '';
+      const microLesson = result.microLesson || result.micro_lesson || '';
+
+      if (parentTip || parentExpl) {
+        let parentContent = `**📚 ${profile.name} is working on: ${concept}**\n\n`;
+        if (parentExpl) parentContent += `**What they're learning:** ${parentExpl}\n\n`;
+        if (parentTip) parentContent += `**🗣️ Your coaching script (${profile.timeWindow} min):**\n${parentTip}\n\n`;
+        if (microLesson) parentContent += `**⏰ Follow-up micro-lesson:** ${microLesson}`;
+        
+        parentMessages.push({ role: 'assistant', content: parentContent, time: Date.now() });
+        
+        // Show notification dot on parent tab if not active
+        if (currentTab !== 'parent') {
+          document.getElementById('tab-parent').innerHTML = '👩‍👧 Parent Coach <span class="w-2 h-2 bg-red-500 rounded-full inline-block ml-1 animate-pulse"></span>';
+        }
+      }
+
+      // Update progress
+      progressData.sessions++;
+      if (!progressData.subjects[subject]) progressData.subjects[subject] = { count: 0, concepts: [] };
+      progressData.subjects[subject].count++;
+      if (!progressData.subjects[subject].concepts.includes(concept)) {
+        progressData.subjects[subject].concepts.push(concept);
+      }
+      progressData.lastActive = Date.now();
+      if (microLesson) {
+        progressData.microLessons.push({
+          lesson: microLesson,
+          subject,
+          concept,
+          date: Date.now(),
+          completed: false
+        });
+      }
+      saveProgress();
+
+      saveMessages();
+      renderMessages();
+    } catch (e) {
+      removeTypingIndicator();
+      childMessages.push({ role: 'assistant', content: `Oops! I hit a snag 😅 ${e.message || 'Please try again!'}`, time: Date.now() });
+      saveMessages();
+      renderChildMessages();
+    }
+  };
+
+  window.sendParentMessage = async function() {
+    if (isLoading) return;
+    const input = document.getElementById('parent-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    parentMessages.push({ role: 'user', content: text, time: Date.now() });
+    renderParentMessages();
+
+    addTypingIndicator('parent-messages');
+
+    try {
+      const recentChildContext = childMessages.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
+      
+      const parentPrompt = `You are a parent coaching assistant helping a busy working parent support their ${profile.grade}th grader named ${profile.name} with homework.
+
+RECENT HOMEWORK SESSION CONTEXT:
+${recentChildContext}
+
+PARENT'S QUESTION: "${text}"
+AVAILABLE TIME: ${profile.timeWindow} minutes
+
+INSTRUCTIONS:
+- Give practical, time-efficient coaching advice
+- Provide specific scripts and phrases the parent can use
+- Explain concepts simply so the parent understands
+- Suggest activities that fit in ${profile.timeWindow} minute windows
+- Be encouraging and acknowledge the parent's effort
+- Use markdown formatting for readability
+- Keep response under 250 words
+
+Return a JSON object with exactly this key:
+- "response": string (your coaching response to the parent, using markdown formatting)`;
+
+      const result = await callAI(parentPrompt);
+      removeTypingIndicator();
+
+      const resp = result.response || "Great question! Let me help you support your child's learning.";
+      parentMessages.push({ role: 'assistant', content: resp, time: Date.now() });
+      saveMessages();
+      renderParentMessages();
+    } catch (e) {
+      removeTypingIndicator();
+      parentMessages.push({ role: 'assistant', content: `Oops! Something went wrong 😅 ${e.message || 'Please try again!'}`, time: Date.now() });
+      saveMessages();
+      renderParentMessages();
+    }
+  };
+
+  // Tab switching
+  window.switchTab = function(tab) {
+    currentTab = tab;
+    const childTab = document.getElementById('tab-child');
+    const parentTab = document.getElementById('tab-parent');
+    const childView = document.getElementById('child-view');
+    const parentView = document.getElementById('parent-view');
+
+    if (tab === 'child') {
+      childTab.className = 'flex-1 py-3 text-center text-sm font-medium transition tab-active border-child text-child';
+      parentTab.className = 'flex-1 py-3 text-center text-sm font-medium transition text-gray-400 border-transparent border-b-3';
+      childView.classList.remove('hidden');
+      parentView.classList.add('hidden');
+    } else {
+      parentTab.className = 'flex-1 py-3 text-center text-sm font-medium transition tab-active border-parent text-parent';
+      parentTab.innerHTML = '👩‍👧 Parent Coach';
+      childTab.className = 'flex-1 py-3 text-center text-sm font-medium transition text-gray-400 border-transparent border-b-3';
+      parentView.classList.remove('hidden');
+      childView.classList.add('hidden');
+      // Scroll to bottom
+      setTimeout(() => {
+        document.getElementById('parent-messages').scrollTop = document.getElementById('parent-messages').scrollHeight;
+      }, 100);
+    }
+  };
+
+  // Quick subject buttons
+  window.quickSubject = function(subject) {
+    const prompts = {
+      math: `I need help with ${profile.grade}th grade math homework`,
+      reading: `I need help with a reading assignment`,
+      science: `I need help with a science question`,
+      writing: `I need help with a writing assignment`
+    };
+    document.getElementById('child-input').value = prompts[subject] || `I need help with ${subject}`;
+    document.getElementById('child-input').focus();
+    switchTab('child');
+  };
+
+  // Upload homework
+  window.uploadHomework = function() {
+    document.getElementById('upload-modal').classList.remove('hidden');
+  };
+
+  window.submitHomework = async function() {
+    const text = document.getElementById('upload-text').value.trim();
+    if (!text) return;
+
+    closeModals();
+    switchTab('child');
+
+    childMessages.push({ role: 'user', content: `📋 **Assignment:** ${text}`, time: Date.now() });
+    renderChildMessages();
+
+    addTypingIndicator('child-messages');
+
+    try {
+      const prompt = `You are a friendly homework tutor for a ${profile.grade}th grade student named ${profile.name}.
+
+The student has uploaded this assignment:
+"${text}"
+
+INSTRUCTIONS:
+- Analyze the assignment and break it into individual problems/tasks
+- For the first problem, start guiding them step-by-step
+- Don't give answers directly — use hints and guiding questions
+- Be encouraging and use grade-appropriate language
+- Use emojis sparingly for engagement
+
+Return a JSON object with exactly these keys:
+- "childResponse": string (your analysis and first step guidance, using markdown)
+- "subject": string (one of: "math", "reading", "science", "writing", "social_studies", "other")
+- "concept": string (the main concept)
+- "totalProblems": number (how many problems/tasks identified)
+- "parentCoachTip": string (coaching script for parent in ${profile.timeWindow} min format, markdown)
+- "parentExplanation": string (concept explanation for parent, markdown)
+- "microLesson": string (follow-up activity suggestion)`;
+
+      const result = await callAI(prompt);
+      removeTypingIndicator();
+
+      const childResp = result.childResponse || "Let me look at this assignment! Can you tell me which part you'd like to start with?";
+      const totalProblems = result.totalProblems || 1;
+
+      childMessages.push({
+        role: 'assistant',
+        content: childResp + (totalProblems > 1 ? `\n\n📝 I found **${totalProblems} tasks** in this assignment. Let's tackle them one at a time!` : ''),
+        time: Date.now()
+      });
+
+      conversationContext.push({ role: 'user', content: `Assignment: ${text}` });
+      conversationContext.push({ role: 'assistant', content: childResp });
+
+      // Parent coaching
+      const parentTip = result.parentCoachTip || '';
+      const parentExpl = result.parentExplanation || '';
+      const microLesson = result.microLesson || '';
+      const subject = result.subject || 'other';
+      const concept = result.concept || 'general';
+
+      if (parentTip || parentExpl) {
+        let parentContent = `**📋 New Assignment Uploaded!**\n**Subject:** ${subject} | **Concept:** ${concept}\n\n`;
+        if (parentExpl) parentContent += `**What it covers:** ${parentExpl}\n\n`;
+        if (parentTip) parentContent += `**🗣️ Your ${profile.timeWindow}-min coaching script:**\n${parentTip}\n\n`;
+        if (microLesson) parentContent += `**⏰ Later today:** ${microLesson}`;
+        
+        parentMessages.push({ role: 'assistant', content: parentContent, time: Date.now() });
+        if (currentTab !== 'parent') {
+          document.getElementById('tab-parent').innerHTML = '👩‍👧 Parent Coach <span class="w-2 h-2 bg-red-500 rounded-full inline-block ml-1 animate-pulse"></span>';
+        }
+      }
+
+      // Progress
+      progressData.sessions++;
+      if (!progressData.subjects[subject]) progressData.subjects[subject] = { count: 0, concepts: [] };
+      progressData.subjects[subject].count++;
+      progressData.lastActive = Date.now();
+      saveProgress();
+
+      saveMessages();
+      renderMessages();
+    } catch (e) {
+      removeTypingIndicator();
+      childMessages.push({ role: 'assistant', content: `Hmm, I had trouble analyzing that 😅 Can you try describing the assignment differently? ${e.message || ''}`, time: Date.now() });
+      saveMessages();
+      renderChildMessages();
+    }
+
+    document.getElementById('upload-text').value = '';
+  };
+
+  window.handleFileUpload = function(event) {
+    // For simplicity, just show a message that text input is preferred
+    alert('For best results, please type or paste your assignment text in the upload box!');
+    uploadHomework();
+  };
+
+  // Profile management
+  window.saveProfile = function() {
+    const name = document.getElementById('child-name').value.trim();
+    const grade = document.getElementById('child-grade').value;
+    const timeWindow = document.getElementById('parent-time').value;
+
+    if (!name || !grade) {
+      alert('Please fill in your child\'s name and grade! 📝');
+      return;
+    }
+
+    profile = { name, grade, timeWindow };
+    localStorage.setItem('hw_profile', JSON.stringify(profile));
+    
+    document.getElementById('onboarding-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+    addWelcomeMessages();
+  };
+
+  // Settings
+  window.showSettings = function() {
+    if (profile) {
+      document.getElementById('settings-name').value = profile.name;
+      document.getElementById('settings-grade').value = profile.grade;
+      document.getElementById('settings-time').value = profile.timeWindow;
+    }
+    document.getElementById('settings-modal').classList.remove('hidden');
+  };
+
+  window.updateSettings = function() {
+    const name = document.getElementById('settings-name').value.trim();
+    const grade = document.getElementById('settings-grade').value;
+    const timeWindow = document.getElementById('settings-time').value;
+
+    if (!name) {
+      alert('Please enter a name! 📝');
+      return;
+    }
+
+    profile = { name, grade, timeWindow };
+    localStorage.setItem('hw_profile', JSON.stringify(profile));
+    closeModals();
+  };
+
+  window.clearAllData = function() {
+    if (confirm('This will erase all data including chat history and progress. Are you sure?')) {
+      localStorage.removeItem('hw_profile');
+      localStorage.removeItem('hw_child_msgs');
+      localStorage.removeItem('hw_parent_msgs');
+      localStorage.removeItem('hw_context');
+      localStorage.removeItem('hw_progress');
+      location.reload();
+    }
+  };
+
+  // Progress
+  window.showProgress = function() {
+    const content = document.getElementById('progress-content');
+    const subjects = progressData.subjects || {};
+    const subjectNames = Object.keys(subjects);
+    const totalSessions = progressData.sessions || 0;
+    const lastActive = progressData.lastActive ? new Date(progressData.lastActive).toLocaleDateString() : 'Never';
+
+    const subjectEmojis = {
+      math: '🔢', reading: '📖', science: '🔬', writing: '✏️',
+      social_studies: '🌍', other: '📚'
+    };
+
+    let subjectHtml = subjectNames.length === 0
+      ? '<p class="text-sm text-gray-500 text-center py-4">No subjects studied yet. Start a homework session!</p>'
+      : subjectNames.map(s => {
+          const emoji = subjectEmojis[s] || '📚';
+          const data = subjects[s];
+          return `<div class="flex items-center justify-between py-2">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">${emoji}</span>
+              <div>
+                <p class="font-medium text-sm capitalize">${s.replace('_', ' ')}</p>
+                <p class="text-xs text-gray-500">${data.concepts.slice(-3).join(', ')}</p>
+              </div>
+            </div>
+            <span class="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-semibold">${data.count} sessions</span>
+          </div>`;
+        }).join('');
+
+    // Micro-lessons
+    const pendingLessons = (progressData.microLessons || []).filter(l => !l.completed).slice(-5);
+    let lessonsHtml = pendingLessons.length === 0
+      ? '<p class="text-sm text-gray-500">No pending micro-lessons!</p>'
+      : pendingLessons.map((l, i) => `
+          <div class="flex items-start gap-2 py-2 border-b border-gray-50 last:border-0">
+            <button onclick="completeMicroLesson(${progressData.microLessons.indexOf(l)})" class="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-child hover:bg-child-light transition flex-shrink-0 mt-0.5 min-w-[24px]"></button>
+            <div>
+              <p class="text-sm">${l.lesson}</p>
+              <p class="text-xs text-gray-400">${l.subject} · ${new Date(l.date).toLocaleDateString()}</p>
+            </div>
+          </div>`).join('');
+
+    content.innerHTML = `
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-primary/5 rounded-xl p-4 text-center">
+          <p class="text-2xl font-bold text-primary">${totalSessions}</p>
+          <p class="text-xs text-gray-600 mt-1">Total Sessions</p>
+        </div>
+        <div class="bg-accent/5 rounded-xl p-4 text-center">
+          <p class="text-2xl font-bold text-accent-dark">${subjectNames.length}</p>
+          <p class="text-xs text-gray-600 mt-1">Subjects Covered</p>
+        </div>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-xs text-gray-500">Last active: ${lastActive}</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-sm text-gray-700 mb-2">📊 Subject Breakdown</h4>
+        <div class="bg-white rounded-xl border border-gray-100 p-3 divide-y divide-gray-50">${subjectHtml}</div>
+      </div>
+      <div>
+        <h4 class="font-semibold text-sm text-gray-700 mb-2">⏰ Pending Micro-Lessons</h4>
+        <div class="bg-white rounded-xl border border-gray-100 p-3">${lessonsHtml}</div>
+      </div>
+    `;
+    document.getElementById('progress-modal').classList.remove('hidden');
+  };
+
+  window.completeMicroLesson = function(index) {
+    if (progressData.microLessons[index]) {
+      progressData.microLessons[index].completed = true;
+      saveProgress();
+      showProgress(); // Re-render
+    }
+  };
+
+  // Modal close
+  window.closeModals = function() {
+    document.getElementById('progress-modal').classList.add('hidden');
+    document.getElementById('settings-modal').classList.add('hidden');
+    document.getElementById('upload-modal').classList.add('hidden');
+  };
+
+  // Close modals on backdrop click
+  ['progress-modal', 'settings-modal', 'upload-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) closeModals();
+    });
+  });
+
+  // Initialize the app
+  init();
+})();
+</script>
+</body>
+</html>
